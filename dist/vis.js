@@ -34655,7 +34655,14 @@ Graph3d.DEFAULTS = {
   yStep: autoByDefault,
   zMin: autoByDefault,
   zMax: autoByDefault,
-  zStep: autoByDefault
+  zStep: autoByDefault,
+
+    /**
+     * hari customizations
+     */
+    colorBy : {enable : false},
+    shapeBy : {enable : false},
+    confidenceEllipsoids : undefined
 };
 
 // -----------------------------------------------------------------------------
@@ -34753,6 +34760,16 @@ Graph3d.prototype._convert3Dto2D = function (point3d) {
   return this._convertTranslationToScreen(translation);
 };
 
+
+/**
+ * hari customizations
+ */
+Graph3d.prototype._convert3Dto2DCustom = function (point3d, ref, angle) {
+    var translation = this._convertPointToTranslationCustom(point3d, ref, angle);
+    return this._convertTranslationToScreen(translation);
+};
+
+
 /**
  * Convert a 3D location its translation seen from the camera
  * Source: http://en.wikipedia.org/wiki/3D_projection
@@ -34789,6 +34806,47 @@ Graph3d.prototype._convertPointToTranslation = function (point3d) {
 
   return new Point3d(dx, dy, dz);
 };
+
+
+/**
+ * hari customizations
+ */
+Graph3d.prototype._convertPointToTranslationCustom = function (point3d, ref, angle) {
+    // initial rotation
+    // translate - rotate - translate
+    var cx = ref.x;
+    var cy = ref.y;
+    var cz = ref.z;
+    var ax = point3d.x;
+    var ay = point3d.y;
+    var az = point3d.z;
+    var fx,fy,fz;
+    // var thetaZ = Math.PI/3 * 1 ;
+    // var thetaY = Math.PI/2 * 0 ;
+    // var thetaX = Math.PI/2 * 1/9 ;
+
+    var thetaZ = angle.z;
+    var thetaY = angle.y;
+    var thetaX = angle.x;
+
+    var cosTx = Math.cos(thetaX);
+    var sinTx = Math.sin(thetaX);
+    var cosTy = Math.cos(thetaY);
+    var sinTy = Math.sin(thetaY);
+    var cosTz = Math.cos(thetaZ);
+    var sinTz = Math.sin(thetaZ);
+    // var kx = point3d.x-tx, ky = cosTx*(point3d.y-ty) - sinTx*(point3d.z-tz), kz = sinTx*(point3d.y-ty) + cosTx*(point3d.z-tz);
+    // fx = tx + cosTz * kx - sinTz * ky,
+    // fy = ty + sinTz * kx + cosTz * ky,
+    // fz = tz + kz;
+
+    fx = cx + cosTy * (sinTz * (ay - cy) + cosTz * (ax - cx)) - sinTy * (az - cz),
+        fy = cy + sinTx * (cosTy * (az - cz) + sinTy * (sinTz * (ay - cy) + cosTz * (ax - cx))) + cosTx * (cosTz * (ay - cy) - sinTz * (ax - cx)),
+        fz = cz + cosTx * (cosTy * (az - cz) + sinTy * (sinTz * (ay - cy) + cosTz * (ax - cx))) - sinTx * (cosTz * (ay - cy) - sinTz * (ax - cx));
+
+    return this._convertPointToTranslation(new Point3d(fx,fy,fz));
+};
+
 
 /**
  * Convert a translation point to a point on the screen
@@ -35939,6 +35997,50 @@ Graph3d.prototype._polygon = function (ctx, points, fillStyle, strokeStyle) {
 };
 
 /**
+ * shyamk shapeby and hari kishore ellipsoids customizations
+ *
+ * @param ctx
+ * @param point
+ * @param color
+ * @param borderColor
+ * @param size
+ * @private
+ */
+Graph3d.prototype._drawCircle = function (ctx, point, color, borderColor, size) {
+    // By default draw use circles for drawing the scatter plot
+    // TODO : Customization to choose the default shape to be rendererd.
+    if (this.shapeBy != undefined && this.shapeBy.enable){
+        var xVal = point.point.x;
+        if (xVal >= 0 && xVal <= 5) {
+            this._drawCircle1(ctx, point, color, borderColor, size);
+        } else if (xVal > 5  && xVal <= 10) {
+            this._drawEllipse(ctx, point, color, borderColor, size);
+        } else if (xVal > 10 && xVal <= 15 ) {
+            this._drawSquare(ctx, point, color, borderColor, size);
+        } else if (xVal > 15 && xVal <= 20) {
+            this._drawDiamond(ctx, point, color, borderColor, size);
+        } else if (xVal > 20 && xVal <= 25) {
+            this._drawPlus(ctx, point, color, borderColor, size);
+        } else if (xVal > 20 && xVal <= 30) {
+            this._drawTraingle(ctx, point, color, borderColor, size);
+        } else if (xVal > 30 && xVal <= 35) {
+            this._drawTraingle(ctx, point, color, borderColor, size);
+        } else if (xVal > 35 && xVal <= 40) {
+            this._drawRectangle(ctx, point, color, borderColor, size);
+        } else if (xVal > 40 && xVal <= 45) {
+            this._drawRectangle(ctx, point, color, borderColor, size);
+        } else if (xVal > 45 && xVal <= 50) {
+            this._drawRectangle(ctx, point, color, borderColor, size);
+        } else {
+            this._drawRectangle(ctx, point, color, borderColor, size);
+        }
+    }
+    else
+        this._drawCircle1(ctx, point, color, borderColor, size);
+
+};
+
+/**
  * @param {CanvasRenderingContext2D} ctx
  * @param {object} point
  * @param {string} color
@@ -35946,17 +36048,415 @@ Graph3d.prototype._polygon = function (ctx, points, fillStyle, strokeStyle) {
  * @param {number} [size=this._dotSize()]
  * @private
  */
-Graph3d.prototype._drawCircle = function (ctx, point, color, borderColor, size) {
-  var radius = this._calcRadius(point, size);
+Graph3d.prototype._drawCircle1 = function (ctx, point, color, borderColor, size) {
+    var radius = this._calcRadius(point, size);
 
-  ctx.lineWidth = this._getStrokeWidth(point);
-  ctx.strokeStyle = borderColor;
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(point.screen.x, point.screen.y, radius, 0, Math.PI * 2, true);
-  ctx.fill();
-  ctx.stroke();
+    ctx.lineWidth = this._getStrokeWidth(point);
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(point.screen.x, point.screen.y, radius, 0, Math.PI * 2, true);
+    ctx.fill();
+    ctx.stroke();
 };
+
+Graph3d.prototype._drawPlus = function (ctx, point, color, borderColor, size) {
+    var radius = this._calcRadius(point, size);
+    var length = radius;
+    var x = point.screen.x;
+    var y = point.screen.y;
+
+    ctx.lineWidth = this._getStrokeWidth(point) + 1.5;
+
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y );
+    ctx.lineTo(x - length, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + length);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + length, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - length);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+};
+
+
+Graph3d.prototype._drawDiamond = function (ctx, point, color, borderColor, size) {
+    var radius = this._calcRadius(point, size);
+    var length = radius;
+    var x = point.screen.x;
+    var y = point.screen.y;
+
+    ctx.lineWidth = this._getStrokeWidth(point);
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - length);
+    ctx.lineTo(x - length, y);
+    ctx.lineTo(x, y + length);
+    ctx.lineTo(x + length, y);
+    ctx.lineTo(x, y - length);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+};
+
+
+Graph3d.prototype._drawRectangle = function (ctx, point, color, borderColor, size) {
+
+    var radius = this._calcRadius(point, size);
+    var length = radius * 1.5;
+    var breadth = radius;
+
+    var x = point.screen.x;
+    var y = point.screen.y;
+
+    ctx.lineWidth = this._getStrokeWidth(point);
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x - length / 2, y - breadth / 2);
+    ctx.lineTo(x - length / 2, y + breadth / 2);
+    ctx.lineTo(x + length / 2, y + breadth / 2);
+    ctx.lineTo(x + length / 2, y - breadth / 2);
+    ctx.lineTo(x - length / 2, y - breadth / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+};
+
+Graph3d.prototype._drawSquare = function (ctx, point, color, borderColor, size) {
+    var radius = this._calcRadius(point, size);
+    var length = radius;
+    var breadth = radius;
+
+    var x = point.screen.x;
+    var y = point.screen.y;
+
+    ctx.lineWidth = this._getStrokeWidth(point);
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x - length / 2, y - breadth / 2);
+    ctx.lineTo(x - length / 2, y + breadth / 2);
+    ctx.lineTo(x + length / 2, y + breadth / 2);
+    ctx.lineTo(x + length / 2, y - breadth / 2);
+    ctx.lineTo(x - length / 2, y - breadth / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+};
+
+Graph3d.prototype._drawTraingle = function (ctx, point, color, borderColor, size) {
+    var radius = this._calcRadius(point, size);
+    var x = point.screen.x;
+    var y = point.screen.y;
+    ctx.lineWidth = this._getStrokeWidth(point);
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+
+    ctx.moveTo(x, (y - radius));
+    ctx.lineTo(x - (0.866 * radius), y + (radius * 0.5));
+    ctx.lineTo(x + (0.866 * radius), y + (radius * 0.5) );
+    ctx.lineTo(x, (y - radius));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+};
+
+
+Graph3d.prototype._drawEllipse = function(ctx, point, color, borderColor, size) {
+    var radius = this._calcRadius(point, size);
+    var x = point.screen.x;
+    var y = point.screen.y;
+    var w = this._calcRadius(point, 50);
+    var h = this._calcRadius(point, 20);
+    var kappa = .5522848,
+        ox = (w / 2) * kappa, // control point offset horizontal
+        oy = (h / 2) * kappa, // control point offset vertical
+        xe = x + w,           // x-end
+        ye = y + h,           // y-end
+        xm = x + w / 2,       // x-middle
+        ym = y + h / 2;       // y-middle
+
+    ctx.lineWidth = this._getStrokeWidth(point);
+    ctx.strokeStyle = borderColor;
+    ctx.fillStyle = color;
+
+    ctx.beginPath();
+    ctx.moveTo(x, ym);
+    ctx.bezierCurveTo(x, ym - oy, xm - ox, y, xm, y);
+    ctx.bezierCurveTo(xm + ox, y, xe, ym - oy, xe, ym);
+    ctx.bezierCurveTo(xe, ym + oy, xm + ox, ye, xm, ye);
+    ctx.bezierCurveTo(xm - ox, ye, x, ym + oy, x, ym);
+    ctx.closePath(); // not used correctly, see comments (use to close off open path)
+    ctx.fill();
+    ctx.stroke();
+}
+
+function calcVariance(points){
+
+}
+
+function calcMean(points){
+
+    var meanX = 0, meanY = 0, meanZ = 0;
+    var botX = 0, botY = 0, botZ = 0;
+    var transX = 0, transY = 0, transZ = 0;
+    var scrX=0, scrY=0;
+
+    for(var i =0; i< points.length; i++){
+        meanX += points[i].point.x;
+        meanY += points[i].point.y;
+        meanZ += points[i].point.z;
+        botX += points[i].bottom.x;
+        botY += points[i].bottom.y;
+        botZ += points[i].bottom.z;
+        transX += points[i].trans.x;
+        transY += points[i].trans.y;
+        transZ += points[i].trans.z;
+        scrX += points[i].screen.x;
+        scrY += points[i].screen.y;
+    }
+
+    meanX /= points.length;
+    meanY /= points.length;
+    meanZ /= points.length;
+    botX /= points.length;
+    botX /= points.length;
+    botX /= points.length;
+    transX /= points.length;
+    transY /= points.length;
+    transZ /= points.length;
+    scrX /= points.length;
+    scrY /= points.length;
+
+    return {meanX: meanX, meanY: meanY, meanZ: meanZ, botX:botX,
+        botY:botY, botZ:botZ, transX:transX, transY:transY, transZ:transZ,
+        scrX:scrX, scrY:scrY};
+}
+
+Graph3d.prototype._drawHottellingEllipse = function(ctx, points, UB, LB, color, angle, axesLength) {
+
+    var trianglePoints = [];
+
+    for(var i =0; i< points.length; i++){
+        if(points[i].point.x > LB && points[i].point.x <= UB)
+            trianglePoints.push(points[i]);
+    }
+
+    var means = calcMean(trianglePoints);
+    var point3D = new Point3d(means.meanX, means.meanY, means.meanZ);
+    var bottom = new Point3d(means.botX, means.botY, means.botZ);
+    var screen = {x:means.scrX, y:means.scrY};
+    var trans = {x:means.transX, y:means.transY, z:means.transZ};
+
+    var point = {point:point3D, bottom:bottom, screen:screen, trans:trans};
+    var a = axesLength.x;
+    var b = axesLength.y;
+    var c = axesLength.z;
+
+    var angle_with_x = 0.0;
+    var angle_with_xy_plane = 0.0;
+    var as = a/2;
+    var bs = b/2;
+    var cs = c/2;
+
+    ctx.lineWidth = 2;
+    ctx.fillStyle = "mediumseagreen";
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.05;
+
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "black";
+
+    var AS = as;
+    var BS = bs;
+    var CS = cs;
+    var X = point3D.x;
+    var Y = point3D.y;
+    var Z = point3D.z;
+    var point3Dorg = new Point3d(point3D.x, point3D.y, point3D.z);
+
+    var calcChordLength = function(major,minor,distance_from_center) {
+        return major*Math.sqrt(1-Math.pow(distance_from_center/minor, 2))
+    };
+
+    var drawEllipseUsingBiezerCurve = function(controlPoints) {
+        ctx.beginPath();
+        ctx.moveTo(controlPoints[0], controlPoints[1]);
+        ctx.bezierCurveTo(controlPoints[2],controlPoints[3],controlPoints[4],controlPoints[5], controlPoints[6],controlPoints[7]);
+        ctx.bezierCurveTo(controlPoints[8],controlPoints[9],controlPoints[10],controlPoints[11], controlPoints[12],controlPoints[13]);
+        ctx.bezierCurveTo(controlPoints[14],controlPoints[15],controlPoints[16],controlPoints[17], controlPoints[18],controlPoints[19]);
+        ctx.bezierCurveTo(controlPoints[20],controlPoints[21],controlPoints[22],controlPoints[23], controlPoints[24],controlPoints[25]);
+        ctx.closePath();
+        ctx.stroke();
+    };
+
+    var noe = 200;
+    var p = [];
+    var temp;
+    var KAPPA = 0.5522848;
+
+    for (var i = -noe; i <= noe; i++) {
+
+        var distance_from_center =  (i/noe) * cs;
+
+        as = calcChordLength(AS,CS, distance_from_center);
+        bs = calcChordLength(BS,CS, distance_from_center);
+        point3D.z = Z + distance_from_center;
+
+        var x = point3D.x - as;
+        var y = point3D.y - bs;
+        var z = point3D.z;
+
+        var ox = (as) * KAPPA, // control point offset horizontal
+            oy = (bs) * KAPPA, // control point offset vertical
+            xe = x + as*2,           // x-end
+            ye = y + bs*2,           // y-end
+            xm = x + as,       // x-middle
+            ym = y + bs; 				// y-middle
+
+        temp = this._convert3Dto2DCustom(new Point3d(x,ym,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(x,ym-oy,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xm-ox,y,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xm,y,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xm+ox,y,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xe,ym-oy,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xe,ym,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xe,ym+oy,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xm+ox,ye,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xm,ye,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(xm-ox,ye,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(x,ym+oy,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        temp = this._convert3Dto2DCustom(new Point3d(x,ym,z), point3Dorg, angle);
+        p.push(temp.x);
+        p.push(temp.y);
+        drawEllipseUsingBiezerCurve(p);
+        p = [];
+    }
+
+    as = AS;
+    bs = BS;
+    point3D.z = Z;
+
+    // for (var i = -noe; i <= noe; i++){
+    // 	var distance_from_center =  (i/noe) * bs
+    // 	as = calcChordLength(AS,BS, distance_from_center);
+    // 	cs = calcChordLength(CS,BS, distance_from_center);
+    // 	point3D.y = Y + distance_from_center;
+    //
+    // 	var p1 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y, point3D.z-cs), point3Dorg, angle);
+    // 	x1 = p1.x;
+    // 	y1 = p1.y;
+    // 	var p2 = this._convert3Dto2DCustom(new Point3d(point3D.x+as/0.75, point3D.y, point3D.z-cs), point3Dorg, angle);
+    // 	x2 = p2.x;
+    // 	y2 = p2.y;
+    // 	var p3 = this._convert3Dto2DCustom(new Point3d(point3D.x+as/0.75, point3D.y, point3D.z+cs), point3Dorg, angle);
+    // 	x3 = p3.x;
+    // 	y3 = p3.y;
+    // 	var p4 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y, point3D.z+cs), point3Dorg, angle);
+    // 	x4 = p4.x;
+    // 	y4 = p4.y;
+    // 	var p5 = this._convert3Dto2DCustom(new Point3d(point3D.x-as/0.75, point3D.y, point3D.z+cs), point3Dorg, angle);
+    // 	x5 = p5.x;
+    // 	y5 = p5.y;
+    // 	var p6 = this._convert3Dto2DCustom(new Point3d(point3D.x-as/0.75, point3D.y, point3D.z-cs), point3Dorg, angle);
+    // 	x6 = p6.x;
+    // 	y6 = p6.y;
+    // 	var p7 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y, point3D.z-cs), point3Dorg, angle);
+    // 	x7 = p7.x;
+    // 	y7 = p7.y;
+    //
+    // 	drawEllipseUsingBiezerCurve(p);
+    // }
+    //
+    // as = AS;
+    // cs = CS;
+    // point3D.y = Y;
+    // //ctx.strokeStyle = "black";
+    //
+    // for (var i = -noe; i <= noe; i++){
+    // 	var distance_from_center =  (i/noe) * as
+    // 	bs = calcChordLength(BS,AS, distance_from_center);
+    // 	cs = calcChordLength(CS,AS, distance_from_center);
+    // 	point3D.x = X + distance_from_center;
+    //
+    // 	var p1 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y, point3D.z-cs), point3Dorg, angle);
+    // 	x1 = p1.x;
+    // 	y1 = p1.y;
+    // 	var p2 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y+bs/0.75, point3D.z-cs), point3Dorg, angle);
+    // 	x2 = p2.x;
+    // 	y2 = p2.y;
+    // 	var p3 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y+bs/0.75, point3D.z+cs), point3Dorg, angle);
+    // 	x3 = p3.x;
+    // 	y3 = p3.y;
+    // 	var p4 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y, point3D.z+cs), point3Dorg, angle);
+    // 	x4 = p4.x;
+    // 	y4 = p4.y;
+    // 	var p5 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y-bs/0.75, point3D.z+cs), point3Dorg, angle);
+    // 	x5 = p5.x;
+    // 	y5 = p5.y;
+    // 	var p6 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y-bs/0.75, point3D.z-cs), point3Dorg, angle);
+    // 	x6 = p6.x;
+    // 	y6 = p6.y;
+    // 	var p7 = this._convert3Dto2DCustom(new Point3d(point3D.x, point3D.y, point3D.z-cs), point3Dorg, angle);
+    // 	x7 = p7.x;
+    // 	y7 = p7.y;
+    //
+    // 	drawEllipseUsingBiezerCurve(p);
+    // }
+    //
+    // bs = BS;
+    // cs = CS;
+    // point3D.x = X;
+}
+
 
 /**
  * Determine the colors for the 'regular' graph styles.
@@ -35976,6 +36476,18 @@ Graph3d.prototype._getColorsRegular = function (point) {
     border: borderColor
   };
 };
+
+
+/**
+ * hari customizations
+ **/
+Graph3d.prototype._getDefaultGXScatterColor = function(){
+    return {
+        fill : "RGB(51, 134, 255)",  // blue
+        border : "RGB(0,0,0)" // black
+    };
+};
+
 
 /**
  * Get the colors for the 'color' graph styles.
@@ -36110,9 +36622,12 @@ Graph3d.prototype._redrawBarSizeGraphPoint = function (ctx, point) {
  * @private
  */
 Graph3d.prototype._redrawDotGraphPoint = function (ctx, point) {
-  var colors = this._getColorsRegular(point);
+  var colors = this._getDefaultGXScatterColor();
+  if(this.colorBy != undefined && this.colorBy.enable){
+      var colors = this._getColorsRegular(point);
+  }
 
-  this._drawCircle(ctx, point, colors.fill, colors.border);
+    this._drawCircle(ctx, point, colors.fill, colors.border);
 };
 
 /**
@@ -36297,6 +36812,18 @@ Graph3d.prototype._redrawDataGraph = function () {
     // Using call() ensures that the correct context is used
     this._pointDrawingMethod.call(this, ctx, point);
   }
+
+  var angle = {x:Math.PI/3, y:Math.PI/12, z:Math.PI/6};
+  var axesLength = {x:10, y:20, z:40};
+  this._drawHottellingEllipse(ctx, this.dataPoints, 35, 30, "mediumseagreen", angle, axesLength);
+  var angle = {x:Math.PI/18, y:0, z:Math.PI/3};
+  this._drawHottellingEllipse(ctx, this.dataPoints, 10, 5, "chocolate", angle, axesLength);
+  var angle = {x:Math.PI/2, y:0, z:0};
+  this._drawHottellingEllipse(ctx, this.dataPoints, 60, 35, "CornflowerBlue", angle, axesLength);
+  var angle = {x:0, y:0, z:0};
+  var axesLength = {x:10, y:10, z:100};
+  this._drawHottellingEllipse(ctx, this.dataPoints, 25, 20, "yellow", angle, axesLength);
+
 };
 
 // -----------------------------------------------------------------------------
@@ -37081,7 +37608,25 @@ var allOptions = {
   //globals :
   height: { string: string },
   width: { string: string },
-  __type__: { object: object }
+  __type__: { object: object },
+
+
+  // hari customizations
+  shapeBy : {enable : {boolean : bool}, __type__ : {object : object}},
+  colorBy : {enable : {boolean : bool}, __type__ : {object : object}},
+  confidenceEllipsoids : {
+    x : {number : number},
+    y : {number : number},
+    z : {number : number},
+    lx : {number : number},
+    ly : {number : number},
+    lz : {number : number},
+    tx : {number : number},
+    ty : {number : number},
+    tz : {number : number},
+    __type__  : {object : object}
+  }
+
 };
 
 exports.allOptions = allOptions;
@@ -37146,6 +37691,7 @@ DataGroup.prototype.initializeData = function (graph3d, rawData, style) {
   }
 
   if (data.length == 0) return;
+
 
   this.style = style;
 

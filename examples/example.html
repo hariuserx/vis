@@ -1,0 +1,66 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Graph 3D demo</title>
+
+    <style>
+        body {font: 10pt arial;}
+    </style>
+
+    <script type="text/javascript" src="../dist/vis.js"></script>
+
+    <script type="text/javascript">
+      let data = null;
+      let graph = null;
+
+      function custom(x, y) {
+        return (Math.sin(x/50) * Math.cos(y/50) * 50 + 50);
+      }
+
+      // Called when the Visualization API is loaded.
+      function drawVisualization() {
+        // Create and populate a data table.
+        let data = new vis.DataSet();
+        // create some nice looking data with sin/cos
+        const dataPoints = 50;  // number of datapoints will be steps*steps
+        for(let i=0; i<dataPoints;i++){
+          data.add({
+            x: Math.random(i)*i+1 ,
+            y: Math.random(i)*i-i,
+            z: Math.random(i)*i*2
+            //style: value
+          });
+        }
+
+        // specify options
+        let options = {
+          width:  '1000px',
+          height: '700px',
+          //style: 'surface',
+          showPerspective: true,
+          showGrid: true,
+          showShadow: false,
+          keepAspectRatio: true,
+          verticalRatio: 0.5
+        };
+
+        // create a graph3d
+        var container = document.getElementById('mygraph');
+        graph3d = new vis.Graph3d(container, data, options);
+        //graph3d.on('cameraPositionChange', onCameraPositionChange);
+      }
+
+      function onCameraPositionChange(event) {
+        alert('The camera position changed to:\n' +
+          'Horizontal: ' + event.horizontal + '\n' +
+          'Vertical: ' + event.vertical + '\n' +
+          'Distance: ' + event.distance);
+      }
+
+    </script>
+</head>
+
+<body onload="drawVisualization();">
+<div id="mygraph"></div>
+</body>
+</html>
