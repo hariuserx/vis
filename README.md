@@ -1,3 +1,21 @@
+# vis.js Ellipsoids
+
+3D confidence Ellipsoids.
+
+__Usage:__ open example.html in examples in your browser.
+
+__How is it built?:__ Entirely using axes transformations, bezier curves and high school mathematics.
+Multiple ellipses are drawn in all three axes to give a feel of ellipsoid. The ellipsoids can be draw with any center, axes lengths and any rotation.
+We just need to specify lx,ly and lz(axes lengths), tx,ty and tz(axes rotations) and x,y and z(center).
+
+
+__Some screenshots:__<br>
+
+![alt text](docs/img/ellipsoids1.png)
+![alt text](docs/img/ellipsoids2.png)
+![alt text](docs/img/ellipsoids3.png)
+
+
 # vis.js
 
 [![Join the chat at https://gitter.im/vis-js/Lobby](https://badges.gitter.im/vis-js/Lobby.svg)](https://gitter.im/vis-js/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
